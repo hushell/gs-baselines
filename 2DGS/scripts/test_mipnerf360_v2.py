@@ -114,7 +114,6 @@ def test_scene(gpu, scene, image_folder, log_file):
         try:
             gaussians = GaussianModel(getattr(cfg_args, "sh_degree", 3))
             scene_obj = Scene(cfg_args, gaussians, load_iteration=iteration, shuffle=False)
-            gaussians.eval()
             torch.cuda.empty_cache()
 
             # Validation configs: test set (all), small subset of train set
