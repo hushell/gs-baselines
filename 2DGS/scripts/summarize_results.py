@@ -64,6 +64,7 @@ def collect_tensorboard_metrics(output_dir, iterations):
     output_path = Path(output_dir)
     
     if not output_path.exists():
+        print(f"Error: Output directory '{output_dir}' does not exist")
         return tensorboard_data
     
     # Tags to extract from TensorBoard
