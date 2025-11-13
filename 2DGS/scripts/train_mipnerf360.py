@@ -99,7 +99,7 @@ def run_jobs_dynamically():
     running = {}
     job_iter = iter(jobs)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=num_gpus) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=num_gpus) as executor:
         # Start one job per GPU
         for gpu in available_gpus[:num_gpus]:
             try:

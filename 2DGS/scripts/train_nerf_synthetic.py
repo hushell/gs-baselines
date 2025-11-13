@@ -37,7 +37,7 @@ def train_scene(gpu, scene, log_file):
     if not args.skip_train:
         cmd = (f"OMP_NUM_THREADS=4 CUDA_VISIBLE_DEVICES={gpu} "
                f"python train.py -s {scene_source} -m {scene_output} --eval "
-               f"--white_background --lambda_normal {args.lambda_normal} "
+               #f"--white_background --lambda_normal {args.lambda_normal} "
                f"--port {6209+int(gpu)} >> {log_file} 2>&1")
         print(f"[GPU {gpu}] Training {scene}... (log: {log_file})")
         if not args.dry_run:
@@ -95,7 +95,7 @@ def run_jobs_dynamically():
     running = {}
     job_iter = iter(jobs)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=num_gpus) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=num_gpus) as executor:
         # Start one job per GPU
         for gpu in available_gpus[:num_gpus]:
             try:
