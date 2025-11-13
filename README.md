@@ -16,9 +16,12 @@ uv pip install submodules/diff-gaussian-rasterization --no-build-isolation
 uv pip install submodules/simple-knn --no-build-isolation
 ```
 
-### Additional package for OctFormer
+## 2DGS
 ```
-git clone https://github.com/octree-nn/dwconv.git && cd dwconv && uv pip install -e . --no-build-isolation
+cd 2DGS
+python scripts/train_mipnerf360.py
+python scripts/test_mipnerf360_v2.py
+python scripts/summarize_results.py --output_file output/mipnerf360/summary.md
 ```
 
 
