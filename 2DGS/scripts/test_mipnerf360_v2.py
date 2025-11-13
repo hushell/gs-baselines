@@ -85,9 +85,12 @@ def test_scene(gpu, scene, image_folder, log_file):
     cfg_args.images = image_folder
     cfg_args.eval = True
 
-    # Build pipeline group from cfg (depth_ratio etc.)
-    pipeline_group = PipelineParams(ArgumentParser())
-    pipe = pipeline_group.extract(cfg_args)
+    # Build pipeline params with safe defaults, override from cfg if present
+    pp = PipelineParams(ArgumentParser())
+    pipe = pp
+    for key in ["convert_SHs_python", "compute_cov3D_python", "depth_ratio", "debug"]:
+        if hasattr(cfg_args, key):
+            setattr(pipe, key, getattr(cfg_args, key))
 
     # Background color
     bg_color = [1, 1, 1] if getattr(cfg_args, "white_background", False) else [0, 0, 0]
