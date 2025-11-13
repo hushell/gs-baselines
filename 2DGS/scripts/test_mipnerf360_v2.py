@@ -119,6 +119,30 @@ def test_scene(gpu, scene, image_folder, log_file):
             scene_obj = Scene(cfg_args, gaussians, load_iteration=iteration, shuffle=False)
             torch.cuda.empty_cache()
 
+            # Compute Gaussian stats (count and total storage size) and store in results.json
+            try:
+                num_gaussians = int(gaussians.get_xyz.shape[0])
+                tensors_for_storage = [
+                    gaussians._xyz,
+                    gaussians._features_dc,
+                    gaussians._features_rest,
+                    gaussians._opacity,
+                    gaussians._scaling,
+                    gaussians._rotation,
+                ]
+                storage_bytes = int(sum(t.element_size() * t.numel() for t in tensors_for_storage if t is not None))
+                # Save iteration-level stats
+                results_data[f"ours_{iteration}_num_gaussians"] = num_gaussians
+                results_data[f"ours_{iteration}_storage_bytes"] = storage_bytes
+                results_data[f"ours_{iteration}_storage_megabytes"] = storage_bytes / (1024.0 * 1024.0)
+                with open(results_json_path, "w") as f:
+                    json.dump(results_data, f, indent=2)
+                log(f"[GPU {gpu}] [{scene}] iter {iteration} stats: "
+                    f"num_gaussians={num_gaussians}, "
+                    f"storage={storage_bytes / (1024.0 * 1024.0):.2f} MB")
+            except Exception as e:
+                log(f"[GPU {gpu}] Failed to compute/store Gaussian stats at iter {iteration}: {e}")
+
             # Validation configs: test set (all), small subset of train set
             validation_configs = (
                 {'name': 'test', 'cameras': scene_obj.getTestCameras()},
