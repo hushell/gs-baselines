@@ -80,8 +80,8 @@ def format_markdown_table(results, dataset_name="MipNeRF360"):
             split_key = f"ours_{base_iter}_{split}"
             # Table header
             lines.append(f"### {split.title()} set\n")
-            lines.append("| Scene | PSNR ↑ | SSIM ↑ | LPIPS ↓ |")
-            lines.append("|-------|--------|--------|---------|")
+            lines.append("| Scene | PSNR ↑ | SSIM ↑ | LPIPS ↓ | #Gaussians | Size (MB) |")
+            lines.append("|-------|--------|--------|---------|------------:|----------:|")
             
             # Collect data for this iteration/split
             scene_metrics = []
@@ -91,7 +91,18 @@ def format_markdown_table(results, dataset_name="MipNeRF360"):
                     psnr = metrics.get('PSNR', 0)
                     ssim = metrics.get('SSIM', 0)
                     lpips = metrics.get('LPIPS', 0)
-                    scene_metrics.append((scene, psnr, ssim, lpips))
+                    # Optional gaussian stats (per iteration, split-independent)
+                    num_gauss_key = f"ours_{base_iter}_num_gaussians"
+                    size_mb_key = f"ours_{base_iter}_storage_megabytes"
+                    size_b_key = f"ours_{base_iter}_storage_bytes"
+                    num_gauss = scene_data.get(num_gauss_key, None)
+                    size_mb = scene_data.get(size_mb_key, None)
+                    if size_mb is None and size_b_key in scene_data:
+                        try:
+                            size_mb = float(scene_data[size_b_key]) / (1024.0 * 1024.0)
+                        except Exception:
+                            size_mb = None
+                    scene_metrics.append((scene, psnr, ssim, lpips, num_gauss, size_mb))
             
             # Sort scenes
             if args.sort_by == "psnr":
@@ -104,19 +115,35 @@ def format_markdown_table(results, dataset_name="MipNeRF360"):
             # Add rows
             psnr_sum = ssim_sum = lpips_sum = 0
             count = 0
-            for scene, psnr_v, ssim_v, lpips_v in scene_metrics:
-                lines.append(f"| {scene} | {psnr_v:.4f} | {ssim_v:.4f} | {lpips_v:.4f} |")
+            gauss_sum = 0
+            gauss_count = 0
+            size_sum = 0.0
+            size_count = 0
+            for scene, psnr_v, ssim_v, lpips_v, num_gauss, size_mb in scene_metrics:
+                num_gauss_disp = f"{int(num_gauss):d}" if isinstance(num_gauss, (int, float)) and num_gauss is not None else "-"
+                size_mb_disp = f"{float(size_mb):.2f}" if isinstance(size_mb, (int, float)) and size_mb is not None else "-"
+                lines.append(f"| {scene} | {psnr_v:.4f} | {ssim_v:.4f} | {lpips_v:.4f} | {num_gauss_disp} | {size_mb_disp} |")
                 psnr_sum += psnr_v
                 ssim_sum += ssim_v
                 lpips_sum += lpips_v
                 count += 1
+                if isinstance(num_gauss, (int, float)):
+                    gauss_sum += int(num_gauss)
+                    gauss_count += 1
+                if isinstance(size_mb, (int, float)):
+                    size_sum += float(size_mb)
+                    size_count += 1
             
             # Add average row
             if count > 0:
                 avg_psnr = psnr_sum / count
                 avg_ssim = ssim_sum / count
                 avg_lpips = lpips_sum / count
-                lines.append(f"| **Average** | **{avg_psnr:.4f}** | **{avg_ssim:.4f}** | **{avg_lpips:.4f}** |")
+                avg_gauss = (gauss_sum / gauss_count) if gauss_count > 0 else None
+                avg_size = (size_sum / size_count) if size_count > 0 else None
+                avg_gauss_disp = f"**{int(round(avg_gauss))}**" if avg_gauss is not None else "-"
+                avg_size_disp = f"**{avg_size:.2f}**" if avg_size is not None else "-"
+                lines.append(f"| **Average** | **{avg_psnr:.4f}** | **{avg_ssim:.4f}** | **{avg_lpips:.4f}** | {avg_gauss_disp} | {avg_size_disp} |")
             lines.append("")  # Empty line between subtables
         lines.append("")  # Empty line between iterations
     
@@ -124,12 +151,16 @@ def format_markdown_table(results, dataset_name="MipNeRF360"):
     if len(sorted_base_iterations) > 1:
         for split in ["test", "train"]:
             lines.append(f"## Summary: Average {split.title()} Metrics Across All Scenes\n")
-            lines.append("| Checkpoint | PSNR ↑ | SSIM ↑ | LPIPS ↓ |")
-            lines.append("|------------|--------|--------|---------|")
+            lines.append("| Checkpoint | PSNR ↑ | SSIM ↑ | LPIPS ↓ | #Gaussians | Size (MB) |")
+            lines.append("|------------|--------|--------|---------|------------:|----------:|")
             for base_iter in sorted_base_iterations:
                 split_key = f"ours_{base_iter}_{split}"
                 psnr_sum = ssim_sum = lpips_sum = 0
                 count = 0
+                gauss_sum = 0
+                gauss_count = 0
+                size_sum = 0.0
+                size_count = 0
                 for scene, scene_data in results.items():
                     if split_key in scene_data:
                         metrics = scene_data[split_key]
@@ -137,12 +168,33 @@ def format_markdown_table(results, dataset_name="MipNeRF360"):
                         ssim_sum += metrics.get('SSIM', 0)
                         lpips_sum += metrics.get('LPIPS', 0)
                         count += 1
+                    # Stats (iteration-level)
+                    num_gauss_key = f"ours_{base_iter}_num_gaussians"
+                    size_mb_key = f"ours_{base_iter}_storage_megabytes"
+                    size_b_key = f"ours_{base_iter}_storage_bytes"
+                    num_gauss = scene_data.get(num_gauss_key, None)
+                    size_mb = scene_data.get(size_mb_key, None)
+                    if size_mb is None and size_b_key in scene_data:
+                        try:
+                            size_mb = float(scene_data[size_b_key]) / (1024.0 * 1024.0)
+                        except Exception:
+                            size_mb = None
+                    if isinstance(num_gauss, (int, float)):
+                        gauss_sum += int(num_gauss)
+                        gauss_count += 1
+                    if isinstance(size_mb, (int, float)):
+                        size_sum += float(size_mb)
+                        size_count += 1
                 if count > 0:
                     avg_psnr = psnr_sum / count
                     avg_ssim = ssim_sum / count
                     avg_lpips = lpips_sum / count
+                    avg_gauss = (gauss_sum / gauss_count) if gauss_count > 0 else None
+                    avg_size = (size_sum / size_count) if size_count > 0 else None
                     iteration_display = f"{base_iter // 1000}K"
-                    lines.append(f"| {iteration_display} | {avg_psnr:.4f} | {avg_ssim:.4f} | {avg_lpips:.4f} |")
+                    avg_gauss_disp = f"{int(round(avg_gauss))}" if avg_gauss is not None else "-"
+                    avg_size_disp = f"{avg_size:.2f}" if avg_size is not None else "-"
+                    lines.append(f"| {iteration_display} | {avg_psnr:.4f} | {avg_ssim:.4f} | {avg_lpips:.4f} | {avg_gauss_disp} | {avg_size_disp} |")
             lines.append("")
     
     return "\n".join(lines)
